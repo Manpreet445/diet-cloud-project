@@ -7,3 +7,6 @@ __pycache__/
 __MACOSX/
 .DS_Store
 Thumbs.db
+.python_packages
+.vscode/
+.funcignore
