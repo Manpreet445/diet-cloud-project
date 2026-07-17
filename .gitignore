@@ -1,0 +1,9 @@
+# Azure Functions
+local.settings.json
+.venv/
+__pycache__/
+*.pyc
+
+__MACOSX/
+.DS_Store
+Thumbs.db
