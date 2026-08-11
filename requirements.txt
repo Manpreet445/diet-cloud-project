@@ -1,4 +1,4 @@
-azure-functions
+azure-functions>=1.21.0
 azure-storage-blob
 pandas
 redis
