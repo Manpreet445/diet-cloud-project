@@ -270,7 +270,7 @@ def make_response(body, status=200):
 
 
 # Avg protein/carbs/fat per diet type, plus how many recipes each diet has
-@app.route(route="insights", methods=["GET"])
+@app.route(route="insights", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def insights(req: func.HttpRequest) -> func.HttpResponse:
     start = time.time()
     try:
@@ -304,7 +304,7 @@ def insights(req: func.HttpRequest) -> func.HttpResponse:
 # Top recipes sorted by protein, highest first.
 # Row-level data is too big to be worth caching, so this reads the cleaned CSV
 # the trigger produced - already cleaned, so no re-cleaning needed.
-@app.route(route="recipes", methods=["GET"])
+@app.route(route="recipes", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def recipes(req: func.HttpRequest) -> func.HttpResponse:
     start = time.time()
     try:
@@ -352,7 +352,7 @@ def recipes(req: func.HttpRequest) -> func.HttpResponse:
 
 # Correlation matrix between protein/carbs/fat for the heatmap
 # Per-diet averages and most common cuisine per diet for the scatter plot
-@app.route(route="clusters", methods=["GET"])
+@app.route(route="clusters", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def clusters(req: func.HttpRequest) -> func.HttpResponse:
     start = time.time()
     try:
