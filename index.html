@@ -45,6 +45,19 @@
   header svg{flex:none;}
   header h1{font-weight:700;font-size:1.55rem;letter-spacing:-0.01em;}
   header p{color:#A7F3D0;font-size:0.85rem;margin-top:2px;}
+  /* Logged-in user, top right */
+  #userInfo{margin-left:auto;display:flex;align-items:center;gap:var(--space-2);font-size:0.88rem;}
+  #userInfo .who{color:#A7F3D0;}
+  #userInfo .who strong{color:#fff;font-weight:600;}
+  #userInfo a{
+    color:#fff;text-decoration:none;font-weight:600;font-size:0.8rem;
+    border:1px solid rgba(255,255,255,0.45);border-radius:6px;padding:5px 11px;
+    transition:background .15s ease;
+  }
+  #userInfo a:hover{background:rgba(255,255,255,0.15);}
+  /* Hide the page until the auth gate has run, so the dashboard never flashes
+     on screen for a signed-out visitor. */
+  body.auth-pending{visibility:hidden;}
 
   main{max-width:1240px;margin:0 auto;padding:var(--space-3) var(--space-4) var(--space-5);}
 
@@ -188,7 +201,7 @@
   }
 </style>
 </head>
-<body>
+<body class="auth-pending">
 
 <header>
   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#A7F3D0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -199,6 +212,7 @@
     <h1>Nutritional Insights</h1>
     <p>Diet Analysis Dashboard · INTP302 Group Project</p>
   </div>
+  <div id="userInfo"></div>
 </header>
 
 <main>
@@ -606,6 +620,59 @@ document.getElementById("nextPage").addEventListener("click", () => { currentPag
 if (FUNCTION_KEY.startsWith("__")){
   setStatus("No API key configured — for local testing open this page with ?key=<function key> in the URL.", true);
 }
+</script>
+
+<script>
+/* ============================================================
+   Auth gate — the dashboard stays hidden until this passes.
+
+   Two accepted identities, because the project supports both:
+     1. GitHub OAuth, via Static Web Apps' built-in provider
+        (/.auth/me returns a clientPrincipal)
+     2. Email/password, via our own auth API
+        (login.html stores a JWT in localStorage)
+
+   Either one gets you in. If neither is present we bounce to /login.html.
+   ============================================================ */
+(async function authGate(){
+  const box = document.getElementById("userInfo");
+
+  function signedIn(name, logoutHref, onLogout){
+    document.body.classList.remove("auth-pending");
+    box.innerHTML = `<span class="who">Signed in as <strong></strong></span><a href="${logoutHref}">Logout</a>`;
+    box.querySelector("strong").textContent = name;   // textContent, so a crafted name can't inject HTML
+    if (onLogout) box.querySelector("a").addEventListener("click", onLogout);
+  }
+
+  // 1. GitHub via Static Web Apps
+  try {
+    const res = await fetch("/.auth/me");
+    if (res.ok){
+      const principal = (await res.json()).clientPrincipal;
+      if (principal){
+        signedIn(principal.userDetails, "/.auth/logout");
+        return;
+      }
+    }
+  } catch (err) {
+    /* /.auth/me only exists once deployed to Static Web Apps — ignore it locally */
+  }
+
+  // 2. Email/password token from our own API
+  const token = localStorage.getItem("authToken");
+  if (token){
+    signedIn(localStorage.getItem("authName") || "User", "#", ev => {
+      ev.preventDefault();
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("authName");
+      location.href = "/login.html";
+    });
+    return;
+  }
+
+  // Neither identity present — not logged in
+  location.replace("/login.html");
+})();
 </script>
 </body>
 </html>
