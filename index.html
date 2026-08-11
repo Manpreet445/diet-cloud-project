@@ -290,7 +290,7 @@
    file with ?key=YOUR_FUNCTION_KEY appended to the URL.
    ============================================================ */
 const FUNCTION_KEY = new URLSearchParams(location.search).get("key") || "__FUNCTION_KEY__";
-const API_BASE = "https://diet-analysis-noreen.azurewebsites.net/api";
+const API_BASE = "https://dietfunc123-cxdfgrdhb0dvf7bv.westus2-01.azurewebsites.net/api";
 const API = {
   insights: `${API_BASE}/insights?code=${FUNCTION_KEY}`,
   recipes:  `${API_BASE}/recipes?code=${FUNCTION_KEY}`,
