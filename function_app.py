@@ -229,31 +229,42 @@ def get_payload():
 
 # ---------------------------------------------------------------- step 1: the trigger
 
+def run_pipeline(csv_bytes, origin):
+    """Clean -> write cleaned CSV -> aggregate -> cache. The whole job, once."""
+    start = time.time()
+
+    # Step 2 - read into memory, clean, write the cleaned copy back out
+    df, diet, protein, carbs, fat = clean_dataframe(pd.read_csv(io.BytesIO(csv_bytes)))
+    write_clean_csv(df)
+
+    # Step 3 - aggregate straight from the dataframe we already have in memory
+    payload = build_chart_payload(df, diet, protein, carbs, fat)
+
+    # Step 4 - push it to the cache
+    cached = cache_payload(payload)
+
+    elapsed = round((time.time() - start) * 1000)
+    logging.info(
+        f"Pipeline ({origin}) done in {elapsed}ms - "
+        f"{payload['total_recipes']} recipes, "
+        f"{len(payload['barChartData']['labels'])} diet types, "
+        f"cached={cached}"
+    )
+    return payload, cached, elapsed
+
+
+# NOTE: this app runs on a Flex Consumption plan, which only supports the
+# Event Grid based blob trigger - the older polling source never fires there.
+# Storage needs an Event Grid subscription pointing at this function.
 @app.blob_trigger(arg_name="inputblob",
                   path=f"{INPUT_CONTAINER}/{INPUT_BLOB}",
-                  connection="AzureWebJobsStorage")
+                  connection="AzureWebJobsStorage",
+                  source=func.BlobSource.EVENT_GRID)
 def clean_and_cache(inputblob: func.InputStream):
     """Fires when uploads/All_Diets.csv is created or overwritten."""
-    start = time.time()
     logging.info(f"Blob trigger fired: {inputblob.name} ({inputblob.length} bytes)")
-
     try:
-        # Step 2 - read into memory, clean, write the cleaned copy back out
-        df, diet, protein, carbs, fat = clean_dataframe(pd.read_csv(io.BytesIO(inputblob.read())))
-        write_clean_csv(df)
-
-        # Step 3 - aggregate straight from the dataframe we already have in memory
-        payload = build_chart_payload(df, diet, protein, carbs, fat)
-
-        # Step 4 - push it to the cache
-        cached = cache_payload(payload)
-
-        logging.info(
-            f"Pipeline done in {round((time.time() - start) * 1000)}ms - "
-            f"{payload['total_recipes']} recipes, "
-            f"{len(payload['barChartData']['labels'])} diet types, "
-            f"cached={cached}"
-        )
+        run_pipeline(inputblob.read(), "blob trigger")
     except Exception:
         logging.exception("Blob trigger pipeline failed")
         raise  # let the Functions runtime record the failure and retry
@@ -366,4 +377,25 @@ def clusters(req: func.HttpRequest) -> func.HttpResponse:
         })
     except Exception as e:
         logging.exception("clusters failed")
+        return make_response({"error": str(e)}, 500)
+
+
+# Manual re-run of the same pipeline the blob trigger uses. Handy as a fallback
+# if Event Grid delivery is slow, and for warming the cache after a deploy.
+# Requires the function key - this is an admin action, not a public endpoint.
+@app.route(route="refresh", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+def refresh(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        raw = blob_service().get_blob_client(
+            INPUT_CONTAINER, INPUT_BLOB).download_blob().readall()
+        payload, cached, elapsed = run_pipeline(raw, "manual refresh")
+        return make_response({
+            "status": "ok",
+            "cached": cached,
+            "total_recipes": payload["total_recipes"],
+            "generated_at": payload["generated_at"],
+            "pipeline_ms": elapsed,
+        })
+    except Exception as e:
+        logging.exception("refresh failed")
         return make_response({"error": str(e)}, 500)
