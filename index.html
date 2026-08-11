@@ -1,611 +1,519 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Nutritional Insights</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<style>
-  :root{
-    /* Palette: "Calorie & Nutrition Counter" (ui-ux-pro-max) */
-    --color-primary:#059669;
-    --color-primary-dark:#047857;
-    --color-primary-deep:#065F46;
-    --color-secondary:#10B981;
-    --color-accent:#EA580C;
-    --color-background:#ECFDF5;
-    --color-foreground:#0F172A;
-    --color-card:#FFFFFF;
-    --color-muted:#64748B;
-    --color-border:#E1F2ED;
-    --color-destructive:#DC2626;
-    /* Density 8/10 — dashboard spacing scale */
-    --space-1:8px; --space-2:12px; --space-3:16px; --space-4:24px; --space-5:32px;
-    --radius:10px;
-    --font-ui:'Fira Sans',system-ui,sans-serif;
-    --font-data:'Fira Code',ui-monospace,monospace;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{
-    background:var(--color-background);
-    color:var(--color-foreground);
-    font-family:var(--font-ui);
-    font-size:15px;
-    min-height:100vh;
-  }
-
-  header{
-    background:linear-gradient(120deg,var(--color-primary-deep),var(--color-primary-dark));
-    color:#fff;
-    padding:var(--space-4) var(--space-5);
-    display:flex;align-items:center;gap:var(--space-2);
-  }
-  header svg{flex:none;}
-  header h1{font-weight:700;font-size:1.55rem;letter-spacing:-0.01em;}
-  header p{color:#A7F3D0;font-size:0.85rem;margin-top:2px;}
-
-  main{max-width:1240px;margin:0 auto;padding:var(--space-3) var(--space-4) var(--space-5);}
-
-  /* KPI strip */
-  .kpis{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2);
-    margin-bottom:var(--space-2);
-  }
-  @media (max-width:820px){.kpis{grid-template-columns:repeat(2,1fr);}}
-  .kpi{
-    background:var(--color-card);border:1px solid var(--color-border);
-    border-radius:var(--radius);padding:var(--space-2) var(--space-3);
-  }
-  .kpi .label{font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-muted);}
-  .kpi .value{font-family:var(--font-data);font-size:1.5rem;font-weight:600;margin-top:2px;}
-  .kpi .value small{font-size:0.8rem;color:var(--color-muted);font-weight:400;}
-  .kpi .value.accent{color:var(--color-accent);}
-  .kpi .value.primary{color:var(--color-primary-dark);}
-
-  /* Controls */
-  .controls{
-    display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;
-    background:var(--color-card);border:1px solid var(--color-border);
-    border-radius:var(--radius);padding:var(--space-2) var(--space-3);
-    margin-bottom:var(--space-2);
-  }
-  .controls input[type="search"]{
-    flex:1;min-width:200px;
-    padding:9px 12px;border:1px solid var(--color-border);border-radius:8px;
-    font:inherit;background:#F8FDFB;
-  }
-  .controls select{
-    padding:9px 12px;border:1px solid var(--color-border);border-radius:8px;
-    font:inherit;background:#F8FDFB;min-width:150px;cursor:pointer;
-  }
-  .controls input:focus-visible,.controls select:focus-visible,button:focus-visible{
-    outline:2px solid var(--color-primary);outline-offset:2px;
-  }
-  .btn{
-    padding:9px 16px;border:none;border-radius:8px;cursor:pointer;
-    font:inherit;font-weight:600;font-size:0.9rem;
-    display:inline-flex;align-items:center;gap:8px;
-    transition:background .18s ease, box-shadow .18s ease, transform .08s ease;
-  }
-  .btn:active{transform:translateY(1px);}
-  .btn:disabled{opacity:.65;cursor:wait;}
-  .btn-primary{background:var(--color-primary);color:#fff;}
-  .btn-primary:hover:not(:disabled){background:var(--color-primary-dark);box-shadow:0 3px 10px rgba(5,150,105,.3);}
-  .btn-secondary{background:#fff;color:var(--color-primary-dark);border:1.5px solid var(--color-primary);}
-  .btn-secondary:hover:not(:disabled){background:#ECFDF5;}
-  /* Loading spinner inside buttons */
-  .spinner{
-    width:14px;height:14px;border-radius:50%;flex:none;display:none;
-    border:2px solid currentColor;border-top-color:transparent;
-    animation:spin .7s linear infinite;
-  }
-  .btn.loading .spinner{display:inline-block;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-
-  .status{
-    font-family:var(--font-data);font-size:0.8rem;color:var(--color-muted);
-    margin:0 0 var(--space-2) 4px;min-height:1.2em;
-  }
-  .status.error{color:var(--color-destructive);}
-
-  /* Chart grid */
-  .grid{
-    display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-2);
-    margin-bottom:var(--space-2);
-  }
-  @media (max-width:820px){.grid{grid-template-columns:1fr;}}
-  .card{
-    background:var(--color-card);border:1px solid var(--color-border);
-    border-radius:var(--radius);padding:var(--space-2) var(--space-3);
-    display:flex;flex-direction:column;
-  }
-  .card h2{
-    font-size:0.92rem;font-weight:600;
-    display:flex;align-items:center;gap:8px;margin-bottom:var(--space-2);
-  }
-  .card h2 svg{color:var(--color-primary-dark);flex:none;}
-  .card .chart-wrap{position:relative;height:260px;}
-  .card.empty .chart-wrap::after{
-    content:attr(data-empty);
-    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    color:var(--color-muted);font-size:0.83rem;text-align:center;padding:0 20px;
-  }
-
-  /* Heatmap (colored table grid) */
-  #heatmapTable{width:100%;border-collapse:separate;border-spacing:3px;font-size:0.78rem;}
-  #heatmapTable th{color:var(--color-muted);font-weight:600;padding:4px 6px;text-align:center;}
-  #heatmapTable th:first-child{text-align:left;}
-  #heatmapTable td{padding:7px 6px;text-align:center;}
-  #heatmapTable td.cell{font-family:var(--font-data);font-weight:500;border-radius:6px;}
-  #heatmapTable td.rowlabel{text-align:left;font-weight:600;}
-  .heat-legend{
-    display:flex;align-items:center;gap:8px;font-size:0.72rem;color:var(--color-muted);
-    margin-top:var(--space-1);
-  }
-  .heat-legend .bar{
-    flex:none;width:110px;height:8px;border-radius:4px;
-    background:linear-gradient(90deg,hsl(25 75% 40%),hsl(0 0% 95%),hsl(160 60% 28%));
-  }
-  .heat-note{font-size:0.76rem;color:var(--color-muted);margin-top:var(--space-1);}
-
-  /* Recipes table */
-  .table-card{background:var(--color-card);border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-2) var(--space-3);}
-  .table-card h2{font-size:0.92rem;margin-bottom:var(--space-2);display:flex;align-items:center;gap:8px;}
-  .table-card h2 svg{color:var(--color-primary-dark);}
-  .table-scroll{overflow-x:auto;}
-  table.recipes{width:100%;border-collapse:collapse;font-size:0.86rem;min-width:560px;}
-  table.recipes th,table.recipes td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--color-border);}
-  table.recipes th{color:var(--color-muted);font-weight:600;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;}
-  table.recipes td.num{font-family:var(--font-data);font-size:0.8rem;}
-  table.recipes tr{transition:background .15s ease;}
-  table.recipes tbody tr:hover td{background:#F0FBF6;}
-  .pill{
-    display:inline-block;padding:2px 9px;border-radius:999px;font-size:0.72rem;font-weight:600;
-    background:#D9F3E7;color:var(--color-primary-deep);
-  }
-
-  /* Pagination */
-  .pagination{
-    display:flex;align-items:center;justify-content:center;gap:var(--space-1);margin-top:var(--space-2);
-  }
-  .pagination button{
-    padding:7px 13px;border:1px solid var(--color-border);background:#fff;border-radius:8px;
-    font:inherit;font-size:0.85rem;cursor:pointer;transition:background .15s ease;
-  }
-  .pagination button:hover:not(:disabled){background:#ECFDF5;}
-  .pagination button:disabled{opacity:.4;cursor:not-allowed;}
-  .pagination span{font-family:var(--font-data);font-size:0.78rem;color:var(--color-muted);}
-
-  @media (prefers-reduced-motion:reduce){
-    *{transition:none!important;animation-duration:.01ms!important;}
-  }
-  @media (max-width:480px){
-    header{padding:var(--space-3);}
-    main{padding:var(--space-2);}
-    .controls .btn{flex:1;justify-content:center;}
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nutritional Insights</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.0/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
-<body>
 
-<header>
-  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#A7F3D0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
-    <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-  </svg>
-  <div>
-    <h1>Nutritional Insights</h1>
-    <p>Diet Analysis Dashboard · INTP302 Group Project</p>
-  </div>
-</header>
+<body class="bg-gray-100">
 
-<main>
-  <!-- KPI strip -->
-  <div class="kpis" aria-label="Key metrics">
-    <div class="kpi"><div class="label">Total Recipes</div><div class="value primary" id="kpiCount">—</div></div>
-    <div class="kpi"><div class="label">Avg Protein</div><div class="value" id="kpiProtein">— <small>g</small></div></div>
-    <div class="kpi"><div class="label">Avg Carbs</div><div class="value" id="kpiCarbs">— <small>g</small></div></div>
-    <div class="kpi"><div class="label">Avg Fat</div><div class="value accent" id="kpiFat">— <small>g</small></div></div>
-  </div>
+  <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
+      <h1 class="text-2xl font-bold text-center mb-6 text-blue-600">Nutritional Insights</h1>
 
-  <!-- Controls -->
-  <div class="controls">
-    <input type="search" id="searchBox" placeholder="Search recipes…" aria-label="Search recipes" />
-    <select id="dietFilter" aria-label="Filter by diet type">
-      <option value="">All Diet Types</option>
-    </select>
-    <button class="btn btn-primary" id="btnInsights"><span class="spinner" aria-hidden="true"></span>Get Nutritional Insights</button>
-    <button class="btn btn-secondary" id="btnRecipes"><span class="spinner" aria-hidden="true"></span>Get Recipes</button>
-    <button class="btn btn-secondary" id="btnClusters"><span class="spinner" aria-hidden="true"></span>Get Clusters</button>
-  </div>
-  <div class="status" id="status" role="status"></div>
-
-  <!-- Chart cards -->
-  <div class="grid">
-    <div class="card empty" id="cardBar">
-      <h2>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
-        Average Macros by Diet Type
-      </h2>
-      <div class="chart-wrap" data-empty="Click “Get Nutritional Insights” to load data"><canvas id="barChart" role="img" aria-label="Bar chart of average protein, carbs and fat per diet type"></canvas></div>
-    </div>
-    <div class="card empty" id="cardScatter">
-      <h2>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="15" r="1.6"/><circle cx="12" cy="8" r="1.6"/><circle cx="17" cy="12" r="1.6"/><path d="M3 3v18h18"/></svg>
-        Protein vs. Carbs
-      </h2>
-      <div class="chart-wrap" data-empty="Click “Get Recipes” to plot recipes"><canvas id="scatterChart" role="img" aria-label="Scatter plot of protein versus carbs per recipe"></canvas></div>
-    </div>
-    <div class="card empty" id="cardHeat">
-      <h2>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Nutrient Heatmap
-      </h2>
-      <div class="chart-wrap" style="overflow:auto;" data-empty="Click “Get Clusters” to load the nutrient correlation matrix">
-        <table id="heatmapTable" aria-label="Heatmap of nutrient correlations"></table>
-        <div class="heat-legend" id="heatLegend" hidden><span>−1</span><span class="bar"></span><span>+1 (correlation)</span></div>
-        <div class="heat-note" id="heatNote"></div>
+      <div class="flex mb-6 border-b">
+        <button id="tab-login" class="flex-1 py-2 font-semibold text-blue-600 focus:outline-none">Login</button>
+        <button id="tab-register" class="flex-1 py-2 font-semibold text-gray-500 focus:outline-none">Register</button>
       </div>
-    </div>
-    <div class="card empty" id="cardPie">
-      <h2>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21.2 15.9A10 10 0 1 1 8 2.8"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-        Recipes per Diet Type
-      </h2>
-      <div class="chart-wrap" data-empty="Click “Get Nutritional Insights” to load data"><canvas id="pieChart" role="img" aria-label="Pie chart of recipe counts per diet type"></canvas></div>
+
+      <form id="login-form" class="space-y-4">
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Email</label>
+          <input type="email" id="login-email" required class="p-2 border rounded w-full" placeholder="you@example.com">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Password</label>
+          <input type="password" id="login-password" required class="p-2 border rounded w-full" placeholder="password">
+        </div>
+        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded w-full hover:bg-blue-700">Login</button>
+      </form>
+
+      <form id="register-form" class="space-y-4 hidden">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Name</label>
+          <input type="text" id="register-name" required class="p-2 border rounded w-full"
+            placeholder="Your First and Last Name">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Email</label>
+          <input type="email" id="register-email" required class="p-2 border rounded w-full"
+            placeholder="you@example.com">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Password</label>
+          <input type="password" id="register-password" required class="p-2 border rounded w-full"
+            placeholder="password">
+        </div>
+        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded w-full hover:bg-blue-700">Create
+          Account</button>
+      </form>
+
+      <p id="auth-error" class="text-red-600 text-sm mt-4 text-center hidden"></p>
+
+      <div class="mt-6 pt-6 border-t">
+        <p class="text-center text-sm text-gray-500 mb-3">Or login with</p>
+        <button class="bg-blue-600 text-white py-2 px-4 rounded w-full mb-2 hover:bg-blue-700">Login with
+          Google</button>
+        <button class="bg-gray-800 text-white py-2 px-4 rounded w-full hover:bg-gray-900">Login with
+          GitHub</button>
+      </div>
+
+      <button id="dev-bypass" class="mt-4 text-xs text-gray-400 underline w-full">Test sign in</button>
     </div>
   </div>
 
-  <!-- Recipes table + pagination -->
-  <div class="table-card">
-    <h2>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-      Recipes
-    </h2>
-    <div class="table-scroll">
-      <table class="recipes" id="recipesTable">
-        <thead>
-          <tr><th>Recipe</th><th>Diet Type</th><th>Cuisine</th><th>Protein (g)</th><th>Carbs (g)</th><th>Fat (g)</th></tr>
-        </thead>
-        <tbody id="recipesBody">
-          <tr><td colspan="6" style="color:var(--color-muted)">Click “Get Recipes” to load the recipe list.</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="pagination">
-      <button id="prevPage">‹ Prev</button>
-      <span id="pageInfo">Page 1</span>
-      <button id="nextPage">Next ›</button>
-    </div>
+  <div id="dashboard" class="hidden">
+    <header class="bg-blue-600 p-4 text-white flex justify-between items-center">
+      <h1 class="text-3xl font-semibold">Nutritional Insights</h1>
+      <div class="flex items-center gap-4">
+        <span id="user-name" class="font-medium"></span>
+        <button id="logout-button"
+          class="bg-white text-blue-600 py-1 px-3 rounded font-semibold hover:bg-gray-100 focus:outline-none">Logout</button>
+      </div>
+    </header>
+
+    <main class="container mx-auto p-6">
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Explore Nutritional Insights</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h3 class="font-semibold">Average Macros by Diet Type</h3>
+            <p class="text-sm text-gray-600 mb-2">Average macronutrient content by diet type.</p>
+            <div class="h-72"><canvas id="barChart"></canvas></div>
+          </div>
+
+          <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h3 class="font-semibold">Protein vs Carbs</h3>
+            <p class="text-sm text-gray-600 mb-2">Nutrient relationships (protein vs carbs).</p>
+            <div class="h-72"><canvas id="scatterPlot"></canvas></div>
+          </div>
+
+          <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h3 class="font-semibold">Nutrient Heatmap</h3>
+            <p class="text-sm text-gray-600 mb-2">Nutrient correlations.</p>
+            <div class="h-72 overflow-auto">
+              <table id="heatmap" class="text-xs w-full"></table>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 shadow-lg rounded-lg">
+            <h3 class="font-semibold">Recipes per Diet Type</h3>
+            <p class="text-sm text-gray-600 mb-2">Recipe distribution by diet type.</p>
+            <div class="h-72"><canvas id="pieChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Filters and Data Interaction</h2>
+        <div class="flex flex-wrap gap-4">
+          <input type="text" id="search-input" placeholder="Search recipes by keyword"
+            class="p-2 border rounded w-full sm:w-auto flex-1">
+          <select id="diet-filter" class="p-2 border rounded w-full sm:w-auto">
+            <option value="all">All Diet Types</option>
+            <option value="vegan">Vegan</option>
+            <option value="keto">Keto</option>
+            <option value="paleo">Paleo</option>
+            <option value="mediterranean">Mediterranean</option>
+            <option value="dash">DASH</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Recipes</h2>
+        <div id="recipe-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[600px] content-start">
+        </div>
+        <div id="pagination-controls" class="flex justify-center gap-2 mt-6 flex-wrap"></div>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">API Data Interaction</h2>
+        <div class="flex flex-wrap gap-4">
+          <button id="button-insights" class="bg-blue-600 text-white py-2 px-4 rounded">Get Nutritional
+            Insights</button>
+          <button id="button-recipes" class="bg-green-600 text-white py-2 px-4 rounded">Get Recipes</button>
+          <button id="button-clusters" class="bg-purple-600 text-white py-2 px-4 rounded">Get
+            Clusters</button>
+        </div>
+      </section>
+
+      <section class="mt-8">
+        <h2 class="text-2xl font-semibold mb-4">Security & Compliance</h2>
+        <div class="bg-white p-4 shadow-lg rounded-lg">
+          <h3 class="font-semibold">Security Status</h3>
+          <p class="text-sm text-gray-600">Encryption: <span class="font-semibold text-green-600">Enabled</span></p>
+          <p class="text-sm text-gray-600">Access Control: <span class="font-semibold text-green-600">Secure</span></p>
+          <p class="text-sm text-gray-600">Compliance: <span class="font-semibold text-green-600">GDPR
+              Compliant</span></p>
+        </div>
+      </section>
+
+      <section class="mt-8">
+        <h2 class="text-2xl font-semibold mb-4">Cloud Resource Cleanup</h2>
+        <div class="bg-white p-4 shadow-lg rounded-lg">
+          <p class="text-sm text-gray-600">Ensure that cloud resources are efficiently managed and cleaned up
+            post-deployment.</p>
+          <button class="bg-red-600 text-white py-2 px-4 rounded">Clean Up Resources</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bg-blue-600 p-4 text-white text-center mt-10">
+      <p>&copy; 2025 Nutritional Insights. All Rights Reserved.</p>
+    </footer>
   </div>
-</main>
 
-<script>
-/* ============================================================
-   CONFIG — Noreen's Azure Function URLs
-   The function key is injected at deploy time by GitHub Actions
-   (repo secret AZURE_FUNCTION_KEY). For local testing, open the
-   file with ?key=YOUR_FUNCTION_KEY appended to the URL.
-   ============================================================ */
-const FUNCTION_KEY = new URLSearchParams(location.search).get("key") || "__FUNCTION_KEY__";
-const API_BASE = "https://dietfunc123-cxdfgrdhb0dvf7bv.westus2-01.azurewebsites.net/api";
-const API = {
-  insights: `${API_BASE}/insights?code=${FUNCTION_KEY}`,
-  recipes:  `${API_BASE}/recipes?code=${FUNCTION_KEY}`,
-  clusters: `${API_BASE}/clusters?code=${FUNCTION_KEY}`
-};
+  <script>
+    const FUNCTION_KEY = new URLSearchParams(location.search).get("key") || "__FUNCTION_KEY__";
+    const DATA_BASE = "https://dietfunc123-cxdfgrdhb0dvf7bv.westus2-01.azurewebsites.net/api";
+    const AUTH_BASE = "https://nutrition-dashboard-func-epgrfff3c7gmhsgm.mexicocentral-01.azurewebsites.net/api";
+    const AUTH_KEY = "Pa4PzIWlUCNhbFd0hOZOZkfmcpKkP-ljILT3Qubv8IHlAzFuWonl0A==";
 
-/* Categorical palette (emerald-anchored, colorblind-aware: paired with point shapes) */
-const PALETTE = ["#059669","#EA580C","#3E7CB1","#8B5CF6","#B4457A","#B08900","#0D9488","#57534E"];
-const POINT_STYLES = ["circle","rect","triangle","rectRot","cross","star","circle","rect"];
+    const RECIPES_URL = `${DATA_BASE}/recipes?code=${FUNCTION_KEY}&limit=8000`;
+    const INSIGHTS_URL = `${DATA_BASE}/insights?code=${FUNCTION_KEY}`;
+    const CLUSTERS_URL = `${DATA_BASE}/clusters?code=${FUNCTION_KEY}`;
+    const LOGIN_URL = `${AUTH_BASE}/login?code=${AUTH_KEY}`;
+    const REGISTER_URL = `${AUTH_BASE}/register?code=${AUTH_KEY}`;
 
-Chart.defaults.font.family = "'Fira Sans', system-ui, sans-serif";
-Chart.defaults.color = "#64748B";
+    const recipesPerPage = 12;
+    const charts = {};
+    const authScreen = document.getElementById("auth-screen");
+    const dashboard = document.getElementById("dashboard");
+    const loginForm = document.getElementById("login-form");
+    const registerForm = document.getElementById("register-form");
+    const loginTab = document.getElementById("tab-login");
+    const registerTab = document.getElementById("tab-register");
+    const errorBox = document.getElementById("auth-error");
 
-/* ============================================================
-   Helpers
-   API shapes (verified 2026-07-17):
-   insights → { avg_macros:[{diet_type,protein,carbs,fat}], distribution:{diet:count}, total_recipes }
-   recipes  → { recipes:[{diet_type,recipe_name,cuisine_type,protein,carbs,fat}], count }  (supports &limit=N)
-   clusters → { correlation_matrix:{labels,values}, diet_stats:[{diet_type,avg_*,recipe_count,top_cuisine}] }
-   ============================================================ */
-function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
-function cap(s){ return String(s).charAt(0).toUpperCase() + String(s).slice(1); }
-
-function normalizeRecipe(r){
-  return {
-    recipe:  r.recipe_name ?? r.recipe ?? r.name ?? "—",
-    diet:    r.diet_type ?? r.diet ?? "Unknown",
-    cuisine: cap(r.cuisine_type ?? r.cuisine ?? "—"),
-    protein: num(r.protein),
-    carbs:   num(r.carbs),
-    fat:     num(r.fat)
-  };
-}
-
-function setStatus(msg, isError=false){
-  const el = document.getElementById("status");
-  el.textContent = msg;
-  el.className = "status" + (isError ? " error" : "");
-}
-
-async function fetchJSON(url, label, btn){
-  setStatus(`Loading ${label}…`);
-  if (btn){ btn.disabled = true; btn.classList.add("loading"); }
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${label} request failed (HTTP ${res.status})`);
-    const data = await res.json();
-    console.log(`${label} response:`, data);
-    setStatus(`${label} loaded ✔`);
-    return data;
-  } finally {
-    if (btn){ btn.disabled = false; btn.classList.remove("loading"); }
-  }
-}
-
-/* ============================================================
-   State
-   ============================================================ */
-let allRecipes = [];
-let charts = {};
-const PAGE_SIZE = 10;
-let currentPage = 1;
-
-/* ============================================================
-   KPIs
-   ============================================================ */
-function setKPIs(count, protein, carbs, fat){
-  document.getElementById("kpiCount").textContent = count.toLocaleString();
-  document.getElementById("kpiProtein").innerHTML = `${protein.toFixed(1)} <small>g</small>`;
-  document.getElementById("kpiCarbs").innerHTML   = `${carbs.toFixed(1)} <small>g</small>`;
-  document.getElementById("kpiFat").innerHTML     = `${fat.toFixed(1)} <small>g</small>`;
-}
-
-function updateKPIsFromRecords(records){
-  const n = records.length || 1;
-  const avg = key => records.reduce((s,r)=>s+r[key],0)/n;
-  setKPIs(records.length, avg("protein"), avg("carbs"), avg("fat"));
-}
-
-/* Insights returns per-diet averages + counts → weight the averages by count */
-function updateKPIsFromInsights(data){
-  const dist = data.distribution || {};
-  let p=0, c=0, f=0, n=0;
-  for (const row of data.avg_macros){
-    const cnt = dist[row.diet_type] ?? 1;
-    p += num(row.protein)*cnt; c += num(row.carbs)*cnt; f += num(row.fat)*cnt; n += cnt;
-  }
-  if (!n) n = 1;
-  setKPIs(data.total_recipes ?? n, p/n, c/n, f/n);
-}
-
-/* ============================================================
-   Charts
-   ============================================================ */
-function destroyChart(name){ if (charts[name]) { charts[name].destroy(); delete charts[name]; } }
-
-/* Bar: avg macros per diet, straight from insights.avg_macros */
-function buildBarChart(avgMacros){
-  const rows = [...avgMacros].sort((a,b) => num(b.protein) - num(a.protein));
-  destroyChart("bar");
-  document.getElementById("cardBar").classList.remove("empty");
-  charts.bar = new Chart(document.getElementById("barChart"), {
-    type: "bar",
-    data: {
-      labels: rows.map(r => r.diet_type),
-      datasets: [
-        { label:"Avg Protein (g)", data: rows.map(r => num(r.protein)), backgroundColor:"#059669" },
-        { label:"Avg Carbs (g)",   data: rows.map(r => num(r.carbs)),   backgroundColor:"#EA580C" },
-        { label:"Avg Fat (g)",     data: rows.map(r => num(r.fat)),     backgroundColor:"#3E7CB1" }
-      ]
-    },
-    options: { responsive:true, maintainAspectRatio:false,
-      scales:{ y:{ beginAtZero:true, title:{display:true,text:"grams"} } } }
-  });
-}
-
-function hexA(hex, a){
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
-}
-
-/* Even sampling keeps the scatter responsive with the full 7.8k dataset */
-function sampleEvenly(arr, max){
-  if (arr.length <= max) return arr;
-  const step = arr.length / max, out = [];
-  for (let i = 0; i < max; i++) out.push(arr[Math.floor(i * step)]);
-  return out;
-}
-
-function buildScatterChart(records){
-  destroyChart("scatter");
-  document.getElementById("cardScatter").classList.remove("empty");
-  const groups = {};
-  for (const r of sampleEvenly(records, 1500)){
-    (groups[r.diet] = groups[r.diet] || []).push({ x:r.carbs, y:r.protein, recipe:r.recipe });
-  }
-  const names = Object.keys(groups).sort();
-  const datasets = names.map((k,i) => ({
-    label:k,
-    data:groups[k],
-    backgroundColor:hexA(PALETTE[i % PALETTE.length], 0.7),  // 0.6–0.8 opacity shows density
-    borderColor:PALETTE[i % PALETTE.length],
-    pointStyle:POINT_STYLES[i % POINT_STYLES.length],        // shape + color for colorblind users
-    pointRadius:3,
-    pointHoverRadius:6
-  }));
-  charts.scatter = new Chart(document.getElementById("scatterChart"), {
-    type:"scatter",
-    data:{ datasets },
-    options:{ responsive:true, maintainAspectRatio:false, animation:false,
-      plugins:{
-        legend:{ labels:{ usePointStyle:true } },
-        tooltip:{ callbacks:{ label: ctx =>
-          `${ctx.raw.recipe ?? ""} — P:${ctx.raw.y.toFixed(1)}g C:${ctx.raw.x.toFixed(1)}g` } }
-      },
-      scales:{ x:{ title:{display:true,text:"Carbs (g)"} }, y:{ title:{display:true,text:"Protein (g)"} } }
+    function showDashboard() {
+      const name = localStorage.getItem("name") || "User";
+      document.getElementById("user-name").textContent = name;
+      authScreen.classList.add("hidden");
+      dashboard.classList.remove("hidden");
+      loadRecipes();
     }
-  });
-}
 
-/* Heatmap: nutrient correlation matrix from clusters endpoint.
-   Diverging scale: orange (−1) → near-white (0) → green (+1) */
-function heatCellStyle(v){
-  const t = Math.min(Math.abs(v), 1);
-  if (t < 0.05) return "background:hsl(0 0% 95%);color:#0F172A";
-  const hue = v >= 0 ? 160 : 25;
-  const light = 94 - t * 64;                   // darker = stronger correlation
-  return `background:hsl(${hue} 60% ${light}%);color:${t > 0.55 ? "#fff" : "#0F172A"}`;
-}
-
-function buildHeatmap(matrix, dietStats){
-  const labels = matrix.labels.map(cap);
-  document.getElementById("cardHeat").classList.remove("empty");
-  document.getElementById("heatLegend").hidden = false;
-
-  const table = document.getElementById("heatmapTable");
-  let html = "<tr><th scope='col'></th>" + labels.map(l => `<th scope='col'>${l}</th>`).join("") + "</tr>";
-  matrix.values.forEach((row, i) => {
-    html += `<tr><td class="rowlabel">${labels[i]}</td>`;
-    row.forEach(v => { html += `<td class="cell" style="${heatCellStyle(v)}">${v.toFixed(2)}</td>`; });
-    html += "</tr>";
-  });
-  table.innerHTML = html;
-
-  if (Array.isArray(dietStats) && dietStats.length){
-    document.getElementById("heatNote").textContent =
-      "Top cuisine — " + dietStats.map(d => `${d.diet_type}: ${cap(d.top_cuisine)}`).join(" · ");
-  }
-}
-
-/* Pie: recipe counts per diet, straight from insights.distribution */
-function buildPieChart(distribution){
-  const diets = Object.keys(distribution).sort((a,b) => distribution[b] - distribution[a]);
-  destroyChart("pie");
-  document.getElementById("cardPie").classList.remove("empty");
-  charts.pie = new Chart(document.getElementById("pieChart"), {
-    type:"pie",
-    data:{ labels:diets, datasets:[{ data:diets.map(d => distribution[d]),
-      backgroundColor:diets.map((_,i)=>PALETTE[i % PALETTE.length]),
-      borderColor:"#fff", borderWidth:2 }] },
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:"right" } } }
-  });
-}
-
-/* ============================================================
-   Recipes table + search + filter + pagination
-   ============================================================ */
-function filteredRecipes(){
-  const q = document.getElementById("searchBox").value.trim().toLowerCase();
-  const diet = document.getElementById("dietFilter").value;
-  return allRecipes.filter(r =>
-    (!q || String(r.recipe).toLowerCase().includes(q) || String(r.cuisine).toLowerCase().includes(q)) &&
-    (!diet || r.diet === diet)
-  );
-}
-
-function renderTable(){
-  const rows = filteredRecipes();
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  if (currentPage > totalPages) currentPage = totalPages;
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = rows.slice(start, start + PAGE_SIZE);
-
-  const body = document.getElementById("recipesBody");
-  if (!pageRows.length){
-    body.innerHTML = `<tr><td colspan="6" style="color:var(--color-muted)">No recipes match your search. Try clearing the search box or choosing “All Diet Types”.</td></tr>`;
-  } else {
-    body.innerHTML = pageRows.map(r => `
-      <tr>
-        <td>${r.recipe}</td>
-        <td><span class="pill">${r.diet}</span></td>
-        <td>${r.cuisine}</td>
-        <td class="num">${r.protein.toFixed(1)}</td>
-        <td class="num">${r.carbs.toFixed(1)}</td>
-        <td class="num">${r.fat.toFixed(1)}</td>
-      </tr>`).join("");
-  }
-  document.getElementById("pageInfo").textContent = `Page ${currentPage} / ${totalPages} · ${rows.length} recipes`;
-  document.getElementById("prevPage").disabled = currentPage <= 1;
-  document.getElementById("nextPage").disabled = currentPage >= totalPages;
-}
-
-function populateDietFilter(dietNames){
-  const sel = document.getElementById("dietFilter");
-  const existing = new Set([...sel.options].map(o => o.value));
-  [...new Set(dietNames)].sort().forEach(d => {
-    if (!existing.has(d)){
-      const opt = document.createElement("option");
-      opt.value = d; opt.textContent = d;
-      sel.appendChild(opt);
+    function showAuth() {
+      dashboard.classList.add("hidden");
+      authScreen.classList.remove("hidden");
     }
-  });
-}
 
-/* ============================================================
-   Button handlers
-   ============================================================ */
-async function getInsights(){
-  const btn = document.getElementById("btnInsights");
-  try {
-    const data = await fetchJSON(API.insights, "Insights", btn);
-    if (!Array.isArray(data.avg_macros)){ setStatus("Unexpected insights response — check the console (F12).", true); return; }
-    updateKPIsFromInsights(data);
-    populateDietFilter(data.avg_macros.map(r => r.diet_type));
-    buildBarChart(data.avg_macros);
-    buildPieChart(data.distribution || {});
-    setStatus(`Insights loaded ✔ — ${(data.total_recipes ?? 0).toLocaleString()} recipes analyzed`);
-  } catch (err){ setStatus(err.message, true); console.error(err); }
-}
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.classList.remove("hidden");
+    }
 
-async function getRecipes(){
-  const btn = document.getElementById("btnRecipes");
-  try {
-    const data = await fetchJSON(API.recipes + "&limit=8000", "Recipes", btn);
-    allRecipes = (data.recipes || []).map(normalizeRecipe);
-    if (!allRecipes.length){ setStatus("Recipes loaded, but no records found — check the console (F12).", true); return; }
-    updateKPIsFromRecords(allRecipes);
-    populateDietFilter(allRecipes.map(r => r.diet));
-    currentPage = 1;
-    renderTable();
-    buildScatterChart(filteredRecipes());
-    setStatus(`Recipes loaded ✔ — ${allRecipes.length.toLocaleString()} recipes`);
-  } catch (err){ setStatus(err.message, true); console.error(err); }
-}
+    function clearError() {
+      errorBox.textContent = "";
+      errorBox.classList.add("hidden");
+    }
 
-async function getClusters(){
-  const btn = document.getElementById("btnClusters");
-  try {
-    const data = await fetchJSON(API.clusters, "Clusters", btn);
-    if (!data.correlation_matrix){ setStatus("Unexpected clusters response — check the console (F12).", true); return; }
-    buildHeatmap(data.correlation_matrix, data.diet_stats);
-    setStatus("Clusters loaded ✔ — nutrient correlation matrix updated");
-  } catch (err){ setStatus(err.message, true); console.error(err); }
-}
+    loginTab.addEventListener("click", function () {
+      loginForm.classList.remove("hidden");
+      registerForm.classList.add("hidden");
+      loginTab.classList.add("text-blue-600");
+      loginTab.classList.remove("text-gray-500");
+      registerTab.classList.remove("text-blue-600");
+      registerTab.classList.add("text-gray-500");
+      clearError();
+    });
 
-/* ============================================================
-   Wire up events
-   ============================================================ */
-document.getElementById("btnInsights").addEventListener("click", getInsights);
-document.getElementById("btnRecipes").addEventListener("click", getRecipes);
-document.getElementById("btnClusters").addEventListener("click", getClusters);
-function onFilterChange(){
-  currentPage = 1;
-  renderTable();
-  if (allRecipes.length) buildScatterChart(filteredRecipes());
-}
-document.getElementById("searchBox").addEventListener("input", onFilterChange);
-document.getElementById("dietFilter").addEventListener("change", onFilterChange);
-document.getElementById("prevPage").addEventListener("click", () => { currentPage--; renderTable(); });
-document.getElementById("nextPage").addEventListener("click", () => { currentPage++; renderTable(); });
+    registerTab.addEventListener("click", function () {
+      registerForm.classList.remove("hidden");
+      loginForm.classList.add("hidden");
+      registerTab.classList.add("text-blue-600");
+      registerTab.classList.remove("text-gray-500");
+      loginTab.classList.remove("text-blue-600");
+      loginTab.classList.add("text-gray-500");
+      clearError();
+    });
 
-if (FUNCTION_KEY.startsWith("__")){
-  setStatus("No API key configured — for local testing open this page with ?key=<function key> in the URL.", true);
-}
-</script>
+    if (localStorage.getItem("token")) {
+      showDashboard();
+    } else {
+      showAuth();
+    }
+
+    loginForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      clearError();
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+
+      try {
+        const res = await fetch(LOGIN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, password: password })
+        });
+        if (!res.ok) throw new Error("Invalid email or password");
+        const data = await res.json();
+        // change data.token if api uses a different field name
+        localStorage.setItem("token", data.token);
+        if (data.name) localStorage.setItem("name", data.name);
+        showDashboard();
+      } catch (err) {
+        showError("Login failed");
+      }
+    });
+
+    registerForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      clearError();
+      const name = document.getElementById("register-name").value;
+      const email = document.getElementById("register-email").value;
+      const password = document.getElementById("register-password").value;
+
+      try {
+        const res = await fetch(REGISTER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name, email: email, password: password })
+        });
+        if (!res.ok) throw new Error("Could not create account");
+        const data = await res.json();
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("name", name);
+        showDashboard();
+      } catch (err) {
+        showError("Registration failed");
+      }
+    });
+
+    let allRecipes = [];
+    let filteredRecipes = [];
+    let currentPage = 1;
+
+    async function loadRecipes() {
+      try {
+        const res = await fetch(RECIPES_URL);
+        if (!res.ok) throw new Error("recipes api not available");
+        const data = await res.json();
+        allRecipes = data.recipes || data;
+      } catch (err) {
+        allRecipes = [];
+      }
+      applyFilters();
+      if (allRecipes.length) buildScatterChart(allRecipes);
+    }
+
+    function applyFilters() {
+      const keyword = document.getElementById("search-input").value.trim().toLowerCase();
+      const diet = document.getElementById("diet-filter").value;
+
+      filteredRecipes = allRecipes.filter(function (r) {
+        return (diet === "all" || r.diet_type.toLowerCase() === diet) && (keyword === "" || r.recipe_name.toLowerCase().includes(keyword));
+      });
+
+      currentPage = 1;
+      renderPage();
+    }
+
+    function renderPage() {
+      const list = document.getElementById("recipe-list");
+      list.innerHTML = "";
+
+      const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / recipesPerPage));
+      const startIndex = (currentPage - 1) * recipesPerPage;
+      const pageItems = filteredRecipes.slice(startIndex, startIndex + recipesPerPage);
+
+      pageItems.forEach(function (r) {
+        const card = document.createElement("div");
+        card.className = "bg-white p-4 shadow rounded-lg";
+        card.innerHTML =
+          '<h3 class="font-semibold">' + r.recipe_name + '</h3>' +
+          '<p class="text-sm text-gray-600">Diet: ' + r.diet_type + '</p>' +
+          '<p class="text-sm text-gray-600 capitalize">Cuisine: ' + r.cuisine_type + '</p>' +
+          '<p class="text-sm text-gray-600">Protein: ' + r.protein.toFixed(1) + 'g · Carbs: ' + r.carbs.toFixed(1) + 'g · Fat: ' + r.fat.toFixed(1) + 'g</p>';
+        list.appendChild(card);
+      });
+
+      renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+      const controls = document.getElementById("pagination-controls");
+      controls.innerHTML = "";
+      const previous = document.createElement("button");
+      previous.textContent = "Previous";
+      previous.className = "px-3 py-1 rounded bg-gray-300 hover:bg-gray-400 focus:outline-none";
+      previous.addEventListener("click", function () {
+        if (currentPage > 1) {
+          currentPage--;
+          renderPage();
+        }
+      });
+      controls.appendChild(previous);
+
+      for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement("button");
+        button.textContent = i;
+        if (i === currentPage) {
+          button.className = "px-3 py-1 rounded bg-blue-600 text-white focus:outline-none";
+        } else {
+          button.className = "px-3 py-1 rounded bg-gray-300 hover:bg-gray-400 focus:outline-none";
+          button.addEventListener("click", function () {
+            currentPage = i;
+            renderPage();
+          });
+        }
+        controls.appendChild(button);
+      }
+
+      const next = document.createElement("button");
+      next.textContent = "Next";
+      next.className = "px-3 py-1 rounded bg-gray-300 hover:bg-gray-400 focus:outline-none";
+      next.addEventListener("click", function () {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderPage();
+        }
+      });
+      controls.appendChild(next);
+    }
+
+    function destroyChart(name) {
+      if (charts[name]) {
+        charts[name].destroy();
+        delete charts[name];
+      }
+    }
+
+    function buildBarChart(avgMacros) {
+      const rows = [...avgMacros].sort((a, b) => b.protein - a.protein);
+      destroyChart("bar");
+      charts.bar = new Chart(document.getElementById("barChart"), {
+        type: "bar",
+        data: {
+          labels: rows.map(r => r.diet_type),
+          datasets: [
+            { label: "Protein (g)", data: rows.map(r => r.protein), backgroundColor: "#059669" },
+            { label: "Carbs (g)", data: rows.map(r => r.carbs), backgroundColor: "#EA580C" },
+            { label: "Fat (g)", data: rows.map(r => r.fat), backgroundColor: "#3E7CB1" }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, title: { display: true, text: "grams" } } }
+        }
+      });
+    }
+
+    function buildPieChart(distribution) {
+      const diets = Object.keys(distribution).sort((a, b) => distribution[b] - distribution[a]);
+      const palette = ["#059669", "#EA580C", "#3E7CB1", "#8B5CF6", "#B4457A", "#B08900"];
+      destroyChart("pie");
+      charts.pie = new Chart(document.getElementById("pieChart"), {
+        type: "pie",
+        data: {
+          labels: diets,
+          datasets: [{
+            data: diets.map(d => distribution[d]),
+            backgroundColor: diets.map((_, i) => palette[i % palette.length])
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function buildScatterChart(recipes) {
+      destroyChart("scatter");
+      const palette = ["#059669", "#EA580C", "#3E7CB1", "#8B5CF6", "#B4457A", "#B08900"];
+      const groups = {};
+      const sample = recipes.length > 1500 ? recipes.filter((_, i) => i % Math.ceil(recipes.length / 1500) === 0) : recipes;
+      for (const r of sample) {
+        const key = r.diet_type;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ x: r.carbs, y: r.protein, recipe: r.recipe_name });
+      }
+      const names = Object.keys(groups).sort();
+      const datasets = names.map((k, i) => ({
+        label: k,
+        data: groups[k],
+        backgroundColor: palette[i % palette.length]
+      }));
+      charts.scatter = new Chart(document.getElementById("scatterPlot"), {
+        type: "scatter",
+        data: { datasets: datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: "Carbs (g)" } },
+            y: { title: { display: true, text: "Protein (g)" } }
+          }
+        }
+      });
+    }
+
+    function buildHeatmap(matrix) {
+      const table = document.getElementById("heatmap");
+      const labels = matrix.labels;
+      let html = "<tr><th></th>";
+      labels.forEach(l => { html += "<th class='p-1 capitalize'>" + l + "</th>"; });
+      html += "</tr>";
+      matrix.values.forEach((row, i) => {
+        html += "<tr><td class='p-1 font-semibold capitalize'>" + labels[i] + "</td>";
+        row.forEach(v => {
+          const strength = Math.abs(v);
+          const hue = v >= 0 ? 160 : 25;
+          const light = 94 - strength * 60;
+          const color = strength > 0.55 ? "#fff" : "#0F172A";
+          html += "<td class='p-1 text-center' style='background:hsl(" + hue + " 60% " + light + "%);color:" + color + "'>" + v.toFixed(2) + "</td>";
+        });
+        html += "</tr>";
+      });
+      table.innerHTML = html;
+    }
+
+    async function getInsights() {
+      try {
+        const res = await fetch(INSIGHTS_URL);
+        if (!res.ok) throw new Error("insights api not available");
+        const data = await res.json();
+        buildBarChart(data.avg_macros);
+        buildPieChart(data.distribution);
+      } catch (err) {
+        console.error("insights failed", err);
+      }
+    }
+
+    async function getClusters() {
+      try {
+        const res = await fetch(CLUSTERS_URL);
+        if (!res.ok) throw new Error("clusters api not available");
+        const data = await res.json();
+        buildHeatmap(data.correlation_matrix);
+      } catch (err) {
+        console.error("clusters failed", err);
+      }
+    }
+
+    document.getElementById("button-insights").addEventListener("click", getInsights);
+    document.getElementById("button-clusters").addEventListener("click", getClusters);
+    document.getElementById("button-recipes").addEventListener("click", loadRecipes);
+
+    document.getElementById("search-input").addEventListener("input", applyFilters);
+    document.getElementById("diet-filter").addEventListener("change", applyFilters);
+
+    // dev testing
+    document.getElementById("dev-bypass").addEventListener("click", function () {
+      localStorage.setItem("token", "dev-fake-token");
+      localStorage.setItem("name", "Test User");
+      showDashboard();
+    });
+
+    document.getElementById("logout-button").addEventListener("click", function () {
+      localStorage.removeItem("token");
+      localStorage.removeItem("name");
+      showAuth();
+    });
+  </script>
 </body>
+
 </html>
